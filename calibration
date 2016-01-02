@@ -1,0 +1,308 @@
+<!--
+Copyright December 2015, Jose M. Veiga del Baño. 
+Statistical and graphical analysis for the linearity of "1 to n" compounds (validation report)
+Released under same terms as PHP. 
+-->
+
+<HTML LANG="es">
+<HEAD>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script> 
+   function doLoadScript(scriptUrl){
+    if (document.layers)  window.location.href = scriptUrl;
+    else if (document.getElementById) {
+    var script = document.createElement('script'); script.defer = true;  script.src = scriptUrl;
+    document.getElementsByTagName('head')[0].appendChild(script);   
+   }
+}
+    function miToggle(id){
+      var url="tablecalibration.php?id="+id;
+      $("#iframe_"+id).attr('src',url); 
+      $("#div_"+id).toggle();
+    }
+  </script>
+   <TITLE>CHEMGEST:REPORT CAL </TITLE>
+<meta content="text/html; charset=iso-8859-1" http-equiv=Content-Type>
+<?php
+// Data for the "n" compounds	
+error_reporting(0);
+require('functions/SchemA.php');
+require('functions/linearcalibration.php');
+require('functions/secondordercalibration.php');
+$concentration=array(array(2,3,5,10,20,50,100),array(2,3,5,10,20,50,100));
+$response=array(array(11528,30377,49415,95699,233246,618053,1431417),array(27146,41522,71528,140298,284549,770237,1659149));
+$compounds=array('Metamidofos','Diclorvos');
+$contcomp=count($compounds);
+for ($Ci = 0; $Ci < $contcomp; $Ci++) {
+$vcalibration[$compounds[$Ci]]=array($concentration[$Ci],$response[$Ci]);
+//Weight used in linear calibration
+$weightx[$compounds[$Ci]]=$vcalibration[$compounds[$Ci]][0];
+$weighty[$compounds[$Ci]]=$vcalibration[$compounds[$Ci]][1];
+    for($Wi = 0; $Wi < count($weightx[$compounds[$Ci]]); $Wi++) {
+      $weight1x[$compounds[$Ci]][]=1/$vcalibration[$compounds[$Ci]][0][$Wi];
+      $weight1x2[$compounds[$Ci]][]=1/($vcalibration[$compounds[$Ci]][0][$Wi]*$vcalibration[$compounds[$Ci]][0][$Wi]);
+      $weight1y[$compounds[$Ci]][]=1/$vcalibration[$compounds[$Ci]][1][$Wi];
+      $weight1y2[$compounds[$Ci]][]=1/($vcalibration[$compounds[$Ci]][1][$Wi]*$vcalibration[$compounds[$Ci]][1][$Wi]);
+    }
+//linear calibration and weight 1/x
+$calibration1[$compounds[$Ci]]= new linearcalibration($vcalibration[$compounds[$Ci]][0], $vcalibration[$compounds[$Ci]][1], 95,$weight1x[$compounds[$Ci]]);
+$errorWL1x[]=$calibration1[$compounds[$Ci]]->getRStdErrW100();
+//weight calibration 1/x2
+$calibration2[$compounds[$Ci]]= new linearcalibration($vcalibration[$compounds[$Ci]][0], $vcalibration[$compounds[$Ci]][1], 95,$weight1x2[$compounds[$Ci]]);
+$errorWL1x2[]=$calibration2[$compounds[$Ci]]->getRStdErrW100();
+//weight calibration 1/y
+$calibration3[$compounds[$Ci]]= new linearcalibration($vcalibration[$compounds[$Ci]][0], $vcalibration[$compounds[$Ci]][1], 95,$weight1y[$compounds[$Ci]]);
+$errorWL1y[]=$calibration3[$compounds[$Ci]]->getRStdErrW100();
+//weight calibration 1/y2
+$calibration4[$compounds[$Ci]]= new linearcalibration($vcalibration[$compounds[$Ci]][0], $vcalibration[$compounds[$Ci]][1], 95,$weight1y2[$compounds[$Ci]]);
+$errorWL1y2[]=$calibration3[$compounds[$Ci]]->getRStdErrW100();
+//minimun error for all weighted calibration
+$globalerror[]=array($errorWL1x[$Ci],$errorWL1x2[$Ci],$errorWL1y[$Ci],$errorWL1y2[$Ci]);
+$minimunserror[] = array_keys($globalerror[$Ci], min($globalerror[$Ci]));
+  if ($minimunserror[$Ci][0]==0){
+    $mincal[$compounds[$Ci]]=min($vcalibration[$compounds[$Ci]][0]);
+    $maxcal[$compounds[$Ci]]=max($vcalibration[$compounds[$Ci]][0]);
+    $calibrationdef[$compounds[$Ci]]= new linearcalibration($vcalibration[$compounds[$Ci]][0], $vcalibration[$compounds[$Ci]][1], 95,$weight1x[$compounds[$Ci]]);
+    $interLin[]=$calibrationdef[$compounds[$Ci]]->getYInt();
+    $slopeLin[]=$calibrationdef[$compounds[$Ci]]->getSlope();
+    $r2Lin[]=$calibrationdef[$compounds[$Ci]]->getRSquared();
+    $sumsquareLin[]=$calibrationdef[$compounds[$Ci]]->getSumSquaredError();
+    $errorLin[]=$calibrationdef[$compounds[$Ci]]->getRStdErr100();
+    $ccbetaslin[]=$calibrationdef[$compounds[$Ci]]->getCCbeta();
+    $interLinw[]=$calibrationdef[$compounds[$Ci]]->getYIntW();
+    $slopeLinw[]=$calibrationdef[$compounds[$Ci]]->getSlopeW();
+    $r2Linw[]=$calibrationdef[$compounds[$Ci]]->getRSquaredW();
+    $sumsquareLinw[]=$calibrationdef[$compounds[$Ci]]->getSumSquaredErrorW();
+    $ccbetaslinw[]=$calibrationdef[$compounds[$Ci]]->getCCbetaW();
+    $errorWL1x[]=$calibrationdef[$compounds[$Ci]]->getRStdErrW100();
+    $tipo[]='1/x';
+    //array for graphics purposes
+    $predicty[]=$calibrationdef[$compounds[$Ci]]->getPredictedY();
+    $residy[]=$calibrationdef[$compounds[$Ci]]->getError();
+    $predictyw[]=$calibrationdef[$compounds[$Ci]]->getPredictedYW();
+    $residyw[]=$calibrationdef[$compounds[$Ci]]->getErrorW();
+  }elseif($minimunserror[$Ci][0]==1){
+    $mincal[$compounds[$Ci]]=min($vcalibration[$compounds[$Ci]][0]);
+    $maxcal[$compounds[$Ci]]=max($vcalibration[$compounds[$Ci]][0]);
+    $calibrationdef[$compounds[$Ci]]= new linearcalibration($vcalibration[$compounds[$Ci]][0], $vcalibration[$compounds[$Ci]][1], 95,$weight1x2[$compounds[$Ci]]);
+    $interLin[]=$calibrationdef[$compounds[$Ci]]->getYInt();
+    $slopeLin[]=$calibrationdef[$compounds[$Ci]]->getSlope();
+    $r2Lin[]=$calibrationdef[$compounds[$Ci]]->getRSquared();
+    $sumsquareLin[]=$calibrationdef[$compounds[$Ci]]->getSumSquaredError();
+    $errorLin[]=$calibrationdef[$compounds[$Ci]]->getRStdErr100();
+    $ccbetaslin[]=$calibrationdef[$compounds[$Ci]]->getCCbeta();
+    $interLinw[]=$calibrationdef[$compounds[$Ci]]->getYIntW();
+    $slopeLinw[]=$calibrationdef[$compounds[$Ci]]->getSlopeW();
+    $r2Linw[]=$calibrationdef[$compounds[$Ci]]->getRSquaredW();
+    $sumsquareLinw[]=$calibrationdef[$compounds[$Ci]]->getSumSquaredErrorW();
+    $ccbetaslinw[]=$calibrationdef[$compounds[$Ci]]->getCCbetaW();
+    $errorWL1x[]=$calibrationdef[$compounds[$Ci]]->getRStdErrW100();
+    $tipo[]='1/x2';
+    //array for graphics purposes
+    $predicty[]=$calibrationdef[$compounds[$Ci]]->getPredictedY();
+    $residy[]=$calibrationdef[$compounds[$Ci]]->getError();
+    $predictyw[]=$calibrationdef[$compounds[$Ci]]->getPredictedYW();
+    $residyw[]=$calibrationdef[$compounds[$Ci]]->getErrorW();
+  }elseif($minimunserror[$Ci][0]==2){
+    $mincal[$compounds[$Ci]]=min($vcalibration[$compounds[$Ci]][0]);
+    $maxcal[$compounds[$Ci]]=max($vcalibration[$compounds[$Ci]][0]);
+    $calibrationdef[$compounds[$Ci]]= new linearcalibration($vcalibration[$compounds[$Ci]][0], $vcalibration[$compounds[$Ci]][1], 95,$weight1y[$compounds[$Ci]]);
+    $interLin[]=$calibrationdef[$compounds[$Ci]]->getYInt();
+    $slopeLin[]=$calibrationdef[$compounds[$Ci]]->getSlope();
+    $r2Lin[]=$calibrationdef[$compounds[$Ci]]->getRSquared();
+    $sumsquareLin[]=$calibrationdef[$compounds[$Ci]]->getSumSquaredError();
+    $errorLin[]=$calibrationdef[$compounds[$Ci]]->getRStdErr100();
+    $ccbetaslin[]=$calibrationdef[$compounds[$Ci]]->getCCbeta();
+    $interLinw[]=$calibrationdef[$compounds[$Ci]]->getYIntW();
+    $slopeLinw[]=$calibrationdef[$compounds[$Ci]]->getSlopeW();
+    $r2Linw[]=$calibrationdef[$compounds[$Ci]]->getRSquaredW();
+    $sumsquareLinw[]=$calibrationdef[$compounds[$Ci]]->getSumSquaredErrorW();
+    $ccbetaslinw[]=$calibrationdef[$compounds[$Ci]]->getCCbetaW();
+    $errorWL1x[]=$calibrationdef[$compounds[$Ci]]->getRStdErrW100();
+    $tipo[]='1/y';
+    //array for graphics purposes
+    $predicty[]=$calibrationdef[$compounds[$Ci]]->getPredictedY();
+    $residy[]=$calibrationdef[$compounds[$Ci]]->getError();
+    $predictyw[]=$calibrationdef[$compounds[$Ci]]->getPredictedYW();
+    $residyw[]=$calibrationdef[$compounds[$Ci]]->getErrorW();
+  }elseif($minimunserror[$Ci][0]==3){
+    $mincal[$compounds[$Ci]]=min($vcalibration[$compounds[$Ci]][0]);
+    $maxcal[$compounds[$Ci]]=max($vcalibration[$compounds[$Ci]][0]);
+    $calibrationdef[$compounds[$Ci]]= new linearcalibration($vcalibration[$compounds[$Ci]][0], $vcalibration[$compounds[$Ci]][1], 95,$weight1y2[$compounds[$Ci]]);
+    $interLin[]=$calibrationdef[$compounds[$Ci]]->getYInt();
+    $slopeLin[]=$calibrationdef[$compounds[$Ci]]->getSlope();
+    $r2Lin[]=$calibrationdef[$compounds[$Ci]]->getRSquared();
+    $sumsquareLin[]=$calibrationdef[$compounds[$Ci]]->getSumSquaredError();
+    $errorLin[]=$calibrationdef[$compounds[$Ci]]->getRStdErr100();
+    $ccbetaslin[]=$calibrationdef[$compounds[$Ci]]->getCCbeta();
+    $interLinw[]=$calibrationdef[$compounds[$Ci]]->getYIntW();
+    $slopeLinw[]=$calibrationdef[$compounds[$Ci]]->getSlopeW();
+    $r2Linw[]=$calibrationdef[$compounds[$Ci]]->getRSquaredW();
+    $sumsquareLinw[]=$calibrationdef[$compounds[$Ci]]->getSumSquaredErrorW();
+    $ccbetaslinw[]=$calibrationdef[$compounds[$Ci]]->getCCbetaW();
+    $errorWL1x[]=$calibrationdef[$compounds[$Ci]]->getRStdErrW100();
+    $tipo[]='1/y2';
+    //array for graphics purposes linear and weighted calibration
+    $predicty[]=$calibrationdef[$compounds[$Ci]]->getPredictedY();
+    $residy[]=$calibrationdef[$compounds[$Ci]]->getError();
+    $predictyw[]=$calibrationdef[$compounds[$Ci]]->getPredictedYW();
+    $residyw[]=$calibrationdef[$compounds[$Ci]]->getErrorW();
+  }
+//Second order calibration
+$calibrationSO[$compounds[$Ci]]= new secondordercalibration($vcalibration[$compounds[$Ci]][0], $vcalibration[$compounds[$Ci]][1], 95);
+$aSO[]=$calibrationSO[$compounds[$Ci]]->getSOa();
+$bSO[]=$calibrationSO[$compounds[$Ci]]->getSOb();
+$cSO[]=$calibrationSO[$compounds[$Ci]]->getSOc();
+$r2SO[]=$calibrationSO[$compounds[$Ci]]->getRSquared();
+$sumsquareSO[]=$calibrationSO[$compounds[$Ci]]->getSumSquaredError();
+$ccbetasSO[]=$calibrationSO[$compounds[$Ci]]->getCCbeta();
+$errorSO[]=$calibrationSO[$compounds[$Ci]]->getRStdErr100();
+$infpointSO[]=$calibrationSO[$compounds[$Ci]]->getInfpoint();
+  if($infpointSO[$Ci]<$mincal[$compounds[$Ci]]||$infpointSO[$Ci]>$maxcal[$compounds[$Ci]]){
+    $testminormax[]='OK';
+  }else{
+    $testminormax[]='KO';
+  }
+//array for graphics purposes; linear, weighted and second order calibration
+$predictySO[]=$calibrationSO[$compounds[$Ci]]->getPredictedY();
+$residySO[]=$calibrationSO[$compounds[$Ci]]->getError();
+$statisparam= new SchemA();
+$medreslin[]=$statisparam->average($residy[$Ci]);
+$sdreslin[]=$statisparam->sd($residy[$Ci]);
+$medreslinw[]=$statisparam->average($residyw[$Ci]);
+$sdreslinw[]=$statisparam->sd($residyw[$Ci]);
+$medresSO[]=$statisparam->average($residySO[$Ci]);
+$sdresSO[]=$statisparam->sd($residySO[$Ci]);
+$contpoints[]=count($concentration[$Ci]);
+  for ($Cj = 0; $Cj < $contpoints[$Ci]; $Cj++) {
+  $normalreslin[$Ci][]=round(($residy[$Ci][$Cj]-$medreslin[$Ci])/$sdreslin[$Ci],1);
+  $normalreslinw[$Ci][]=round(($residyw[$Ci][$Cj]-$medreslinw[$Ci])/$sdreslinw[$Ci],1);
+  $normalresSO[$Ci][]=round(($residySO[$Ci][$Cj]-$medresSO[$Ci])/$sdresSO[$Ci],1);
+}
+//minimun error for all calibrations
+$globalerror2[]=array($errorLin[$Ci],$errorWL1x[$Ci],$errorSO[$Ci]);
+$minimunserror2[] = array_keys($globalerror2[$Ci], min($globalerror2[$Ci]));
+  if ($minimunserror2[$Ci][0]==0){
+      $Serrorlin[]=1;
+      $Serrorwei[]=0;
+      $Serrorsecond[]=0;
+  }elseif($minimunserror2[$Ci][0]==1){
+      $Serrorlin[]=0;
+      $Serrorwei[]=1;
+      $Serrorsecond[]=0;
+  }elseif($minimunserror2[$Ci][0]==2){
+      $Serrorlin[]=0;
+      $Serrorwei[]=0;
+      $Serrorsecond[]=1;
+  }
+}
+$porcminlin=round(100*array_sum($Serrorlin)/$contcomp,0);
+$porcminweig=round(100*array_sum($Serrorlin)/$contcomp,0);
+$porcminSO=round(100*array_sum($Serrorsecond)/$contcomp,0);
+
+if($_GET['id']=='' || !isset($_GET['id'])){
+?>
+<HTML>
+<style type="text/css">
+    .hoverTable{
+    width:100%; 
+    border-collapse:collapse; 
+  }
+  .hoverTable th{
+    font-size: 100%; 
+    padding:3px; border:#B3C2D0 1.5px double;
+    font-style: normal;
+    background-color: #D3E3F2;
+    color: black;
+  }
+  /* Define the default color for all the table rows */
+  .hoverTable tr{
+    font-size: 90%;
+    font-style: normal;
+  }
+  /* Define the hover highlight color for the table row */
+    .hoverTable tr:hover {
+    background-color: #FBF5EF;
+    font-style: normal;
+    }
+  .hoverTable td{
+    font-size: 90%; 
+    padding:7px; border:#747474 1px solid;
+    text-align: center;
+  }
+
+</style>
+<h1>Calibration Report</h1>
+
+<table class="hoverTable">
+<tr>
+  <th colspan="2" rowspan="2">Compound</th>
+  <th colspan="5">LINEAR CALIBRATION (y=a+bx)</th>
+  <th colspan="6">WEIGHTED CALIBRATION (y=aw+bwx)</th>
+  <th colspan="6">SECOND ORDER CALIBRATION (y=a+bx+cx2)</th>
+</tr>
+<tr>
+  <th colspan="5">Percentage of compounds with minimum error= <?php echo $porcminlin; ?>%</th>
+  <th colspan="6">Percentage of compounds with minimum error= <?php echo $porcminweig; ?>%</th>
+  <th colspan="6">Percentage of compounds with minimum error= <?php echo $porcminSO; ?>%</th>
+</tr>
+<tr>
+  <th>Name</th>
+  <th>Range</th>
+  <th>Equation</th>
+  <th>R2</th>
+  <th>Sres</th>
+  <th>%Error</th>
+  <th>CCbeta</th>
+  <th>Best Weight</th>
+  <th>Equation</th>
+  <th>R2</th>
+  <th>Sres</th>
+  <th>%Error</th>
+  <th>CCbeta</th>
+  <th>Use it?</th>
+  <th>Equation</th>
+  <th>R2</th>
+  <th>Sres</th>
+  <th>%Error</th>
+  <th>CCbeta</th>
+</tr>
+<tr >
+<?php
+  for ($Ci = 0; $Ci < count($compounds); $Ci++) {?>
+      <td><button onclick="miToggle('<?=$Ci?>');return false;"><?php echo $compounds[$Ci]; ?></button></td>
+      <td><?php echo $mincal[$compounds[$Ci]].'-to-'.$maxcal[$compounds[$Ci]]; ?></td>
+      <td><?php echo round($interLin[$Ci],2).'+'.round($slopeLin[$Ci],2).'*X'; ?></td>
+      <td><?php echo round($r2Lin[$Ci],4); ?></td>
+      <td><?php echo round($sumsquareLin[$Ci],2); ?></td>
+      <td><?php echo round($errorLin[$Ci],2); ?></td>
+      <td><?php echo round($ccbetaslin[$Ci],2); ?></td>
+      <td><?php echo $tipo[$Ci]; ?></td>
+      <td><?php echo round($interLinw[$Ci],2).'+'.round($slopeLinw[$Ci],2).'*X'; ?></td>
+      <td><?php echo round($r2Linw[$Ci],4); ?></td>
+      <td><?php echo round($sumsquareLinw[$Ci],2); ?></td>
+      <td><?php echo round($errorWL1x[$Ci],2); ?></td>
+      <td><?php echo round($ccbetaslinw[$Ci],2); ?></td>
+      <td><?php echo $testminormax[$Ci]; ?></td>
+      <td><?php echo round($aSO[$Ci],2).'+'.round($bSO[$Ci],2).'*X'.'+'.round($cSO[$Ci],2).'*X2'; ?></td>
+      <td><?php echo round($r2SO[$Ci],4); ?></td>
+      <td><?php echo $sumsquareSO[$Ci]; ?></td>
+      <td><?php echo round($errorSO[$Ci],2); ?></td>
+      <td><?php echo round($ccbetasSO[$Ci],2); ?></td>
+    </tr>
+    <tr id="div_<?=$Ci?>" style="display:none;">
+    <td colspan="20">
+        <iframe name="iframe_<?=$Ci?>" id="iframe_<?=$Ci?>" width="900" height="300" scrolling="no" src="" ></iframe>
+    </td>
+    </tr>
+<?php }?>
+</HTML>
+<?php
+}
+else
+{
+$Ck=$_GET['id'];
+include("grafcalibration.php");
+}
+?>
